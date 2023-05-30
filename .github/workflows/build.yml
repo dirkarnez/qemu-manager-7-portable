@@ -1,0 +1,45 @@
+name: portable-release-actions-workflow
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'c*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      
+jobs:
+  build:
+    name: Create Release
+    runs-on: windows-latest
+    env:
+      targetZip: qemu-manager-${{ github.ref_name }}-portable.zip
+    steps:
+      - name: installer
+        shell: bash
+        run: |
+          curl -L --output installer.exe 'https://ia802309.us.archive.org/18/items/qemumanager7.0/setupqemuk70.exe'
+          
+      - name: innoextract 
+        shell: cmd
+        run: | 
+          curl https://github.com/dscharrer/innoextract/releases/download/1.9/innoextract-1.9-windows.zip -L --output innoextract-1.9-windows.zip &&^
+          7z.exe x innoextract-1.9-windows.zip
+          
+      - shell: cmd
+        run: |
+          mkdir installation &&^
+          cd installation &&^
+          ..\innoextract.exe ..\installer.exe
+          
+      - name: Archive Release
+        uses: thedoctor0/zip-release@master
+        with:
+          type: 'zip'
+          directory: "installation/app"
+          filename: "${{ env.targetZip }}"
+          
+      - name: Release prebuilt
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "installation/app/${{ env.targetZip }}"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
